@@ -1,6 +1,6 @@
 # Abyssal Bot
 
-## DISCLAMERS
+## DISCLAIMER
 
 - This bot is not designed to be reconfigurable in other cases, I am specifically making it to suit our needs with the clan's discord
 - I am not an experience programmer. I have only properly started programming for about 6 months, and this is the first time I have used discord.js, so the code is certainly not efficient, or laid out well. Especially right now since I focused more on getting an initial version released rather than write the code efficiently. Now that the bot is running, I will focus more on making the bot more scalable as I add more features to it!
@@ -14,4 +14,4 @@ I am currently focused on the Admin side, as the organisational part of the clan
 
 ## Commands
 
-###(To be added)
+To be added
