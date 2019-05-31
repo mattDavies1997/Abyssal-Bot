@@ -1,0 +1,7 @@
+.vscode
+node_modules
+Authentication.txt
+config.json
+credentials.json
+package-lock.json
+token.json
