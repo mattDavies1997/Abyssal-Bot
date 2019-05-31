@@ -1,7 +1,8 @@
 .vscode
 node_modules
-Authentication.txt
 config.json
 credentials.json
 package-lock.json
 token.json
+main-test.js
+config-test.json

@@ -12,14 +12,14 @@ function DownloadColumns(response) {
     return columnDataJson;
         
 }
+
 function DownloadData(response) {
 
     var fullData = response["data"]["values"];
     var columnNames = fullData[0];
-    fullData.shift();
     fullDataJson = {};
 
-    for (i in fullData) {
+    for (var i = 1; i < fullData.length; i++) {
         var thisRow = {};
         thisRow["Row"] = parseInt(i, 10) + 2;
         for (j in columnNames) {
@@ -31,9 +31,27 @@ function DownloadData(response) {
     return fullDataJson;
 }
 
+function DownloadDiscordMap(response) {
+    var discordMap = [];
+    var fullData = response["data"]["values"];
+    var columnNames = fullData[0];
+    var userNameIndex = columnNames.indexOf('Player');
+    var discordIDIndex = columnNames.indexOf('Discord ID');
+    
+    for (var i = 1; i < fullData.length; i++)  {
+        if (fullData[i][discordIDIndex] != undefined) {
+            discordMap.push([fullData[i][discordIDIndex], fullData[i][userNameIndex]])
+        }
+    }
+
+    return discordMap;
+    
+}
+
 module.exports = {
     DownloadColumns,
-    DownloadData
+    DownloadData,
+    DownloadDiscordMap
 };
 
 

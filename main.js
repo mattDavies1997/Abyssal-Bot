@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const client = new Discord.Client();
 const config = require("./config.json");
-const spreadSheet = require("./googleSheets.js");
+const spreadSheet = require("./spreadSheet.js");
 const startUp = require("./onStartUp.js");
 const activity = require("./activity.js");
 
@@ -9,22 +9,20 @@ var columns;
 var membersData;
 var membersCount;
 var nonMembersData;
+var discordMap;
 var nonMembersCount;
-var roleMap = new Map([
-    ["ironmanbtw", "450852917293875221"],
-    ["raiders", "464133699571548161"],
-    ["bossers", "458293293944537109"]
-]);
+var roleMap = new Map(config.rolesMap);
 
 client.on('ready', () => {
 
     refreshData();
+    console.log("I'm Ready!");
     
     client.on("message", async message => {
         if (message.author.bot) return;
-        if (message.content.indexOf(config.prefix) !== 0) return;
+        if (message.content.indexOf(config.botPrefix) !== 0) return;
         
-        const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
+        const args = message.content.slice(config.botPrefix.length).trim().split(/ +/g);
         const command = args.shift().toLowerCase();
         const fullArg = args.join(' ');
 
@@ -108,6 +106,13 @@ client.on('ready', () => {
             });
         }
 
+        if (command === "refresh") {
+            if(!message.member.roles.some(r=>["Abyssal Bot"].includes(r.name)) )
+                return message.reply("Sorry, you don't have permissions to use this!");
+            refreshData();
+            message.channel.send("Data Refreshed!");
+        }
+
         // Star only commands!
         if (command === "addattendance") {
             if(!message.member.roles.some(r=>["General", "Captain", "Lieutenant"].includes(r.name)) )
@@ -145,7 +150,6 @@ client.on('ready', () => {
             } else if (membersData[userName] != null) { // User is already a member
                 message.channel.send(userName + " already in spreadsheet!");
             } else if (nonMembersData[userName] != null) { // User is already logged as a non-member
-                message.channel.send(userName + " is in Non-Clan Members");
                 if (nonMembersData[userName]["Rank Name"] == "Banned") { // User was banned!
                     message.channel.send(userName + " was banned!");
                 } else { // User is a visitor or left the cc
@@ -173,12 +177,14 @@ client.on('ready', () => {
                         userArray[0].push(userData[columnName]);
                     }
                     // Delete user's row in Non-Members
-                    spreadSheet.deleteRow(663111242, rowNum);
+                    spreadSheet.deleteRow("Members", rowNum);
                     // Append row to members sheet
                     spreadSheet.appendRow("Members", userArray);
 
                     refreshData();
-                    client.channels.get("583036145710137354").send(userName);
+                    message.channel.send(userName + " is in Non-Clan Members!" + "\n" +
+                    "They have been moved back to members with rank " + userData["Rank Name"]);
+                    client.channels.get("583036145710137354").send(userName +  "\n" + "**Rank:** " + userData["Rank Name"]);
                 }
             } else { // Player is new to the clan
                 var now = new Date().toISOString()
@@ -210,7 +216,7 @@ client.on('ready', () => {
 
                 refreshData();
                 message.channel.send(userName + " added to roster!");
-                client.channels.get("583036145710137354").send(userName);
+                client.channels.get("583036145710137354").send(userName + "\n" + "**Rank:** Smiley");
             }
         }
 
@@ -222,10 +228,11 @@ client.on('ready', () => {
                 return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
                 + "`.getinfo <USERNAME>`");
             }
+
             var userData = membersData[fullArg];
 
             if (userData == null) {
-                message.channel.send(userName + " not a member!");
+                message.channel.send(fullArg + " not a member!");
             } else {
 
                 for (row in userData) {
@@ -263,8 +270,8 @@ client.on('ready', () => {
                 message.channel.send("Error, no one called " + userName + " on Database. Ping Mattaroo if you spelt it correctly!");
             } else {
 
-                if (membersData[userName]["Discord ID"] == "") {
-                    return message.channel.send("This username has already been linked. Please ping Mattaroo if this is your account and it wasn't you, so he can investigate!")
+                if (membersData[userName]["Discord ID"] != undefined) {
+                    return message.channel.send("This username has already been linked!")
                 }
                 // Updating locally
                 membersData[userName]["Discord Tag"] = message.member.user.tag;
@@ -310,26 +317,54 @@ client.on('ready', () => {
             }
         }
 
+        if (command === "info") {
+            if (discordMap.get(message.member.id) == undefined) {
+                return message.channel.send("You need to link your discord to an OSRS username! Use `.linkdiscord <USERNAME>` to do this!");
+            }
+
+            userData = membersData[discordMap.get(message.member.id)];
+            
+            for (row in userData) {
+                if (userData[row] == "") {
+                    userData[row] = "N/A";
+                }
+            }
+            var stringMessage =
+            "_***Username:***_   " + userData["Player"] + "\n" +
+            "_***Rank:***_   " + userData["Rank Name"] + "\n" +
+            "_***Previous UserName:***_   " + userData["Prev Username"] + "\n" +
+            "_***Attendance:***_   " + userData["Attendance"] + "\n" +
+            "_***Date Joined:***_   " + userData["Date Joined"] + "\n" +
+            "_***Discord Tag:***_   " + userData["Discord Tag"] + "\n" +
+            "_***Abyssal Level:***_   " + "To be added!" + "\n" +
+            "_***Time Zone:***_   " + userData["Time Zone"] + "\n" +
+            "_***Bossers:***_   " + "To be added!" + "\n" +
+            "_***Raiders:***_   " + "To be added!" + "\n" +
+            "_***IronmanBTW:***_   " + "To be added!" + "\n"
+            
+            message.channel.send(stringMessage);
+        }
+
         if(command === "ironman") {
             message.channel.send("BTW");
         }
       });
 });
 
-client.login(config.token);
+client.login(config.botToken);
 
 function refreshData() {
     spreadSheet.readSpreadsheet("Members")
     .then(response => {
         columns = startUp.DownloadColumns(response);
         membersData = startUp.DownloadData(response);
+        discordMap = new Map(startUp.DownloadDiscordMap(response));
         membersCount = Object.keys(membersData).length;
+        
     });
     spreadSheet.readSpreadsheet("Non-Clan Members")
     .then(response => {
         nonMembersData = startUp.DownloadData(response);
         membersCount = Object.keys(nonMembersData).length;
-
-        console.log("I'm Ready!");
     })
 }

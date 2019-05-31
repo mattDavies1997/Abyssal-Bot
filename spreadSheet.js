@@ -1,8 +1,12 @@
 const {google} = require('googleapis');
 var sheets = google.sheets('v4');
 fs = require('fs');
+const config = require('./config.json');
 const credentials = require('./credentials.json');
 const token = require('./token.json');
+
+var spreadSheetID = config.spreadSheetID;
+var sheetMap = new Map(config.sheetMap);
 
 // Update
 async function updateSpreadsheet(cellRange, cellValues) {
@@ -12,7 +16,7 @@ async function updateSpreadsheet(cellRange, cellValues) {
   oAuth2Client.setCredentials(token);
   
   var request = {
-    spreadsheetId: '1KiRzQ5o5V3ySeGHUDVLhZtWGue1ewNIMS5JDDuvlPI4',
+    spreadsheetId: spreadSheetID,
     range: cellRange,
     valueInputOption: 'USER_ENTERED',
     resource: {
@@ -26,7 +30,6 @@ async function updateSpreadsheet(cellRange, cellValues) {
 };
 
 // Read
-
 async function readSpreadsheet(cellRange) {
   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
@@ -34,7 +37,7 @@ async function readSpreadsheet(cellRange) {
   oAuth2Client.setCredentials(token);
 
   var request = {
-    spreadsheetId: '1KiRzQ5o5V3ySeGHUDVLhZtWGue1ewNIMS5JDDuvlPI4',
+    spreadsheetId: spreadSheetID,
     range: cellRange,
     auth: oAuth2Client,
   };
@@ -43,7 +46,8 @@ async function readSpreadsheet(cellRange) {
   return await response;
 };
 
-async function deleteRow(sheetId, row) {
+// Delete row
+async function deleteRow(sheet, row) {
   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
       client_id, client_secret, redirect_uris[0]);
@@ -51,7 +55,7 @@ async function deleteRow(sheetId, row) {
   
   var request = {
     auth: oAuth2Client,
-    spreadsheetId: '1KiRzQ5o5V3ySeGHUDVLhZtWGue1ewNIMS5JDDuvlPI4',
+    spreadsheetId: spreadSheetID,
     resource: {
       "requests": 
       [
@@ -60,7 +64,7 @@ async function deleteRow(sheetId, row) {
           {
             "range": 
             {
-              "sheetId": sheetId,
+              "sheetId": sheetMap.get(sheet),
               "startRowIndex": row - 1,
               "endRowIndex": row
             },
@@ -74,6 +78,7 @@ async function deleteRow(sheetId, row) {
   return await response;
 };
 
+// Append Row
 async function appendRow(sheet, rowValues) {
   const {client_secret, client_id, redirect_uris} = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
@@ -81,7 +86,7 @@ async function appendRow(sheet, rowValues) {
   oAuth2Client.setCredentials(token);
   
   var request = {
-    spreadsheetId: '1KiRzQ5o5V3ySeGHUDVLhZtWGue1ewNIMS5JDDuvlPI4',
+    spreadsheetId: spreadSheetID,
     range: sheet,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',

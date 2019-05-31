@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const fs = require('fs');
 const Promise = require('bluebird');
-const spreadSheet = require("./googleSheets.js");
+const spreadSheet = require("./spreadSheet.js");
 
 async function Get_Total_Xp(userName) {
   var url = 'https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=' + userName;
