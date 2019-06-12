@@ -21,7 +21,7 @@ function DownloadData(response) {
 
     for (var i = 1; i < fullData.length; i++) {
         var thisRow = {};
-        thisRow["Row"] = parseInt(i, 10) + 2;
+        thisRow["Row"] = parseInt(i, 10) + 1;
         for (j in columnNames) {
             thisRow[columnNames[j]] = fullData[i][j];
         }
@@ -37,9 +37,10 @@ function DownloadDiscordMap(response) {
     var columnNames = fullData[0];
     var userNameIndex = columnNames.indexOf('Player');
     var discordIDIndex = columnNames.indexOf('Discord ID');
+    var accountTypeIndex = columnNames.indexOf('Account Type');
     
     for (var i = 1; i < fullData.length; i++)  {
-        if (fullData[i][discordIDIndex] != undefined) {
+        if (fullData[i][discordIDIndex] != undefined && fullData[i][accountTypeIndex] == "Main") {
             discordMap.push([fullData[i][discordIDIndex], fullData[i][userNameIndex]])
         }
     }

@@ -28,7 +28,7 @@ client.on('ready', () => {
 
         // Mattaroo only commands!
         if (command === "activity") {
-            if(!message.member.roles.some(r=>["Abyssal Bot"].includes(r.name)) )
+            if(message.member.id != config.Owner)
                 return message.reply("Sorry, you don't have permissions to use this!");
 
             // Obtain new total xp and provide xp to active members
@@ -99,6 +99,7 @@ client.on('ready', () => {
 
                 message.channel.send("Activity Check Completed!");
 
+                refreshData();
                 message.channel.send("Here is the list of names that failed to be tracked, they likely changed their names:");
                 for (name in errorUserNames) {
                     message.channel.send(errorUserNames[name]);
@@ -107,82 +108,120 @@ client.on('ready', () => {
         }
 
         if (command === "refresh") {
-            if(!message.member.roles.some(r=>["Abyssal Bot"].includes(r.name)) )
+            if(message.member.id != config.Owner)
                 return message.reply("Sorry, you don't have permissions to use this!");
             refreshData();
             message.channel.send("Data Refreshed!");
         }
 
-        // Star only commands!
+        // Admin only commands!
+        if (command === "changerank") {
+            if(!message.member.roles.some(r=>config.Admin.includes(r.name))) {
+                return message.reply("Sorry, you don't have permissions to use this!");
+            }
+
+            var argsArray = fullArg.split(", ");
+
+            if (argsArray.length != 2) {    
+                return message.channel.send("Command should be of the form:" + "\n"
+                + "`.changerank <USERNAME>, <RANK>`");
+            }
+
+            var userName = argsArray[0];        
+            var userData = membersData[userName];   
+            var newRank = argsArray[1];
+                   
+            if (userData == null) {    
+                return message.channel.send(userName + " does not exist in our system!")   
+            }
+            
+            var oldRank = userData["Rank Name"];
+
+            var newRankCell = "Members!" + columns["Rank Name"] + userData["Row"];
+            
+            spreadSheet.updateSpreadsheet(newRankCell, [[newRank]]);
+
+            refreshData();
+            message.channel.send(userName + "'s rank has been changed from " + oldRank + " to " + newRank + "!");
+        }
+
+        // Mod only commands!
         if (command === "addattendance") {
-            if(!message.member.roles.some(r=>["General", "Captain", "Lieutenant"].includes(r.name)) )
+            if(!message.member.roles.some(r=>config.Mod.includes(r.name)))
                 return message.reply("Sorry, you don't have permissions to use this!");
 
             var userName = fullArg;
-
+            var userData = membersData[userName];
             if (userName == "") {
-                message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
+                return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
                 + "`.getattendance <USERNAME>`");
-            } else if (membersData[userName] == null) {
-                message.channel.send(userName + " is not a member!");
-            } else {
-                // Update it locally
-                membersData[userName]["Attendance"] = (parseInt(membersData[userName]["Attendance"]) + 1).toString();
-
-                // Update it on spreadsheet
-                var userCell = "Members!" + columns["Attendance"] + membersData[userName]["Row"];
-                spreadSheet.updateSpreadsheet(userCell, [[membersData[userName]["Attendance"]]]);
-
-                message.channel.send("Attendance added to " + userName);
             }
+            if (userData == null) {
+                return message.channel.send(userName + " is not a member!");
+            }
+
+            var newAttendance = (parseInt(userData["Attendance"]) + 1).toString();
+
+            // Update it on spreadsheet
+            var userCell = "Members!" + columns["Attendance"] + userData["Row"];
+            spreadSheet.updateSpreadsheet(userCell, [[newAttendance]]);
+
+            refreshData();
+            message.channel.send("Attendance added to " + userName);
         }
 
         if (command === "addmember") {
-            if(!message.member.roles.some(r=>["General", "Captain", "Lieutenant"].includes(r.name)) )
+            if(!message.member.roles.some(r=>config.Mod.includes(r.name)))
                 return message.reply("Sorry, you don't have permissions to use this!");
             
             userName = fullArg;
 
             // Checks that the member hasn't already been added to the spreadsheet
             if (userName == "") {
-                message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
+                return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
                 + "`.addmember <USERNAME>`");
-            } else if (membersData[userName] != null) { // User is already a member
-                message.channel.send(userName + " already in spreadsheet!");
-            } else if (nonMembersData[userName] != null) { // User is already logged as a non-member
+            }
+            if (membersData[userName] != null) { // User is already a member
+                return message.channel.send(userName + " already in spreadsheet!");
+            } 
+            
+            if (nonMembersData[userName] != null) { // User is already logged as a non-member
                 if (nonMembersData[userName]["Rank Name"] == "Banned") { // User was banned!
-                    message.channel.send(userName + " was banned!");
+                    message.channel.send(userName + " was **banned**!");
                 } else { // User is a visitor or left the cc
                     var userData = nonMembersData[userName];
 
                     if (!(userData["Rank Name"] == "Recruit" ||
                     userData["Rank Name"] == "Corporal" ||
                     userData["Rank Name"] == "Sergeant")) {
-                        userData["Rank Name"] == "Smiley";
+                        userData["Rank Name"] = "Smiley";
                     }
                     if (userData["Date Joined"] == null) {
                         var now = new Date().toISOString()
                         var dateString = now.slice(5,7) + "/" + now.slice(8,10) + "/" + now.slice(0,4); 
-                        userData["Data Joined"] = dateString;
+                        userData["Date Joined"] = dateString;
+                    }
+                    if (userData["Attendance"] == null) {
+                        userData["Attendance"] = 0;
                     }
                     if (userData["Abyssal Xp"] == null) {
                         userData["Abyssal Xp"] = 0;
                     }
 
-                    
                     var rowNum = userData["Row"];
                     delete userData["Row"];
+                    
                     var userArray = [[]];
                     for (columnName in userData) {
                         userArray[0].push(userData[columnName]);
                     }
                     // Delete user's row in Non-Members
-                    spreadSheet.deleteRow("Members", rowNum);
+                    spreadSheet.deleteRow("Non-Clan Members", rowNum);
                     // Append row to members sheet
                     spreadSheet.appendRow("Members", userArray);
 
                     refreshData();
-                    message.channel.send(userName + " is in Non-Clan Members!" + "\n" +
+                    message.channel.send(userName + " was in Non-Clan Members!" + "\n" +
                     "They have been moved back to members with rank " + userData["Rank Name"]);
                     client.channels.get("583036145710137354").send(userName +  "\n" + "**Rank:** " + userData["Rank Name"]);
                 }
@@ -220,81 +259,42 @@ client.on('ready', () => {
             }
         }
 
-        if (command === "getinfo") {
-            if(!message.member.roles.some(r=>["General", "Captain", "Lieutenant"].includes(r.name)) )
-                return message.reply("Sorry, you don't have permissions to use this!");
-            
-            if (fullArg == "") {
-                return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
-                + "`.getinfo <USERNAME>`");
-            }
-
-            var userData = membersData[fullArg];
-
-            if (userData == null) {
-                message.channel.send(fullArg + " not a member!");
-            } else {
-
-                for (row in userData) {
-                    if (userData[row] == "") {
-                        userData[row] = "N/A";
-                    }
-                }
-                var stringMessage =
-                "_***Username:***_   " + userData["Player"] + "\n" +
-                "_***Rank:***_   " + userData["Rank Name"] + "\n" +
-                "_***Previous UserName:***_   " + userData["Prev Username"] + "\n" +
-                "_***Attendance:***_   " + userData["Attendance"] + "\n" +
-                "_***Date Joined:***_   " + userData["Date Joined"] + "\n" +
-                "_***Discord Tag:***_   " + userData["Discord Tag"] + "\n" +
-                "_***Activity:***_   " + "To be added!" + "\n" +
-                "_***Abyssal Level:***_   " + "To be added!" + "\n" +
-                "_***Notes:***_   " + userData["Notes"] + "\n" +
-                "_***Time Zone:***_   " + userData["Time Zone"] + "\n" +
-                "_***Bossers:***_   " + "To be added!" + "\n" +
-                "_***Raiders:***_   " + "To be added!" + "\n" +
-                "_***IronmanBTW:***_   " + "To be added!" + "\n"
-                
-                message.channel.send(stringMessage);
-            }
-        }
-
         // All members commands!
         if (command === "linkdiscord") {
             var userName = fullArg;
 
             if (userName == "") {
-                message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
+                return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
                 + "`.linkdiscord <USERNAME>`");
-            } else if (membersData[userName] == null) {
-                message.channel.send("Error, no one called " + userName + " on Database. Ping Mattaroo if you spelt it correctly!");
-            } else {
-
-                if (membersData[userName]["Discord ID"] != undefined) {
-                    return message.channel.send("This username has already been linked!")
-                }
-                // Updating locally
-                membersData[userName]["Discord Tag"] = message.member.user.tag;
-                membersData[userName]["Discord ID"] = message.member.id;
-
-                var tagCell = "Members!" + columns["Discord Tag"] + membersData[userName]["Row"];
-                var idCell = "Members!" + columns["Discord ID"] + membersData[userName]["Row"];
-
-                spreadSheet.updateSpreadsheet(tagCell, [[message.member.user.tag]]);
-                spreadSheet.updateSpreadsheet(idCell, [[message.member.id]]);
-
-                message.channel.send(userName + " linked to " + message.member.user.tag + "!");
             }
-        }
+            if (membersData[userName] == null) {
+                return message.channel.send("Error, no one called " + userName + " on Database. Ping Mattaroo if you spelt it correctly!");
+            }
 
+            if (membersData[userName]["Discord ID"] != undefined) {
+                return message.channel.send("This username has already been linked!")
+            }
+
+            var tagCell = "Members!" + columns["Discord Tag"] + membersData[userName]["Row"];
+            var idCell = "Members!" + columns["Discord ID"] + membersData[userName]["Row"];
+
+            spreadSheet.updateSpreadsheet(tagCell, [[message.member.user.tag]]);
+            spreadSheet.updateSpreadsheet(idCell, [[message.member.id]]);
+
+            refreshData();
+            message.channel.send(userName + " linked to " + message.member.user.tag + "!");
+        }
+        
         if (command === "addrole") {
             var role = fullArg;
             var roleLower = role.toLowerCase();
 
             if (role == "") {
-                message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
+                return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
                 + "`.addrole <ROLENAME>`");
-            } else if (roleLower == "ironmanbtw" || roleLower == "raiders" || roleLower == "bossers") {
+            }
+            
+            if (roleLower == "ironmanbtw" || roleLower == "raiders" || roleLower == "bossers") {
                 message.member.addRole(roleMap.get(roleLower));
                 message.channel.send(role + " added!")
             } else {
@@ -318,17 +318,31 @@ client.on('ready', () => {
         }
 
         if (command === "info") {
-            if (discordMap.get(message.member.id) == undefined) {
-                return message.channel.send("You need to link your discord to an OSRS username! Use `.linkdiscord <USERNAME>` to do this!");
-            }
+            var userName = fullArg;
+            var userData = membersData[userName];
 
-            userData = membersData[discordMap.get(message.member.id)];
+            if (fullArg == "") {
+                return message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
+                + ".info <USERNAME>");
+            }
+            
+            if (userData == null) {
+                return message.channel.send(userName + " does not exist in our system!");
+            }
+            
+            if(!message.member.roles.some(r=>config.Mod.includes(r.name))) {
+                if (userData["Discord ID"] != message.member.id) {
+                    return message.channel.send(userName + " is not linked to your Discord!" + "\n"
+                    + "You do not have permissions to see this account's info!")
+                }
+            }
             
             for (row in userData) {
                 if (userData[row] == "") {
                     userData[row] = "N/A";
                 }
             }
+            
             var stringMessage =
             "_***Username:***_   " + userData["Player"] + "\n" +
             "_***Rank:***_   " + userData["Rank Name"] + "\n" +
@@ -343,12 +357,79 @@ client.on('ready', () => {
             "_***IronmanBTW:***_   " + "To be added!" + "\n"
             
             message.channel.send(stringMessage);
+            
         }
 
-        if(command === "ironman") {
+        if (command == "changename") {
+            var userNameArgs = fullArg.split(", ");
+
+            if (userNameArgs.length != 2) {
+                return message.channel.send("Command should be of the form:" + "\n"
+                + ".changename <OLD_USERNAME>, <NEW_USERNAME>");
+            }
+            
+            var oldUserName = userNameArgs[0];
+            var userData = membersData[oldUserName];
+            var newUserName = userNameArgs[1];
+            
+            if (userData == null) {
+                return message.channel.send(oldUserName + " does not exist in our system!")
+            }
+            
+            if(!message.member.roles.some(r=>config.Admin.includes(r.name))) {
+                if (userData["Discord ID"] != message.member.id) {
+                    return message.channel.send(oldUserName + " is not linked to your Discord!" + "\n"
+                    + "You do not have permissions to change this Username!")
+                } 
+            }
+            
+            var oldUserNameCell = "Members!" + columns["Prev Username"] + userData["Row"];
+            var newUserNameCell = "Members!" + columns["Player"] + userData["Row"];
+            
+            spreadSheet.updateSpreadsheet(oldUserNameCell, [[oldUserName]]);
+            spreadSheet.updateSpreadsheet(newUserNameCell, [[newUserName]]);
+            
+            refreshData();
+            message.channel.send(oldUserName + " has been updated to " + newUserName + "!");
+            
+        }
+
+        if (command === "changetimezone") {
+            var argsArray = fullArg.split(", ");
+
+            if (argsArray.length != 2) {    
+                return message.channel.send("Command should be of the form:" + "\n"
+                + ".changetimezone <USERNAME>, <TIMEZONE>");
+            }
+
+            var userName = argsArray[0];        
+            var userData = membersData[userName];   
+            var timeZone = argsArray[1];
+                   
+            if (userData == null) {    
+                return message.channel.send(userName + " does not exist in our system!")   
+            }    
+            if(!message.member.roles.some(r=>config.Admin.includes(r.name))) {        
+                if (userData["Discord ID"] != message.member.id) {         
+                    return message.channel.send(userName + " is not linked to your Discord!" + "\n"
+                    + "You do not have permissions to change this Username!")
+                }
+            }
+            
+            var timeZoneCell = "Members!" + columns["Time Zone"] + userData["Row"];
+            
+            spreadSheet.updateSpreadsheet(timeZoneCell, [[timeZone]]);
+
+            refreshData();
+            
+            message.channel.send(userName + "'s Time Zone has been updated to " + timeZone + "!");
+            
+        }
+
+        if (command === "ironman") {
             message.channel.send("BTW");
         }
-      });
+    });
 });
 
 client.login(config.botToken);
