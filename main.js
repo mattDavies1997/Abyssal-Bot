@@ -28,7 +28,7 @@ client.on('ready', () => {
 
         // Mattaroo only commands!
         if (command === "activity") {
-            if(message.member.id != config.Owner)
+            if(!config.Owner.includes(message.member.id))
                 return message.reply("Sorry, you don't have permissions to use this!");
 
             // Obtain new total xp and provide xp to active members
@@ -108,12 +108,18 @@ client.on('ready', () => {
         }
 
         if (command === "refresh") {
-            if(message.member.id != config.Owner)
+            if(!config.Owner.includes(message.member.id))
                 return message.reply("Sorry, you don't have permissions to use this!");
             refreshData();
             message.channel.send("Data Refreshed!");
         }
-
+        
+        if (command === "restart") {
+            if(!config.Owner.includes(message.member.id))
+                return message.reply("Sorry, you don't have permissions to use this!");
+            message.channel.send('Resetting..')
+            .then(() => resetBot());
+        }
         // Admin only commands!
         if (command === "changerank") {
             if(!message.member.roles.some(r=>config.Admin.includes(r.name))) {
@@ -241,9 +247,6 @@ client.on('ready', () => {
                         "", // Abyssal Level
                         "", // Notes
                         "", // Time Zone
-                        "", // Bosser
-                        "", // Raiders
-                        "", // IronmanBTW
                         "", // Abyssal Xp
                         "", // Total Osrs Xp
                         "" // Discord ID
@@ -294,11 +297,11 @@ client.on('ready', () => {
                 + "`.addrole <ROLENAME>`");
             }
             
-            if (roleLower == "ironmanbtw" || roleLower == "raiders" || roleLower == "bossers") {
+            if (roleMap.get(roleLower) != undefined) {
                 message.member.addRole(roleMap.get(roleLower));
-                message.channel.send(role + " added!")
+                message.channel.send(role + " added!");
             } else {
-                message.channel.send("Cannot add " + role + ". Can only add 'IronmanBTW', 'Raiders' or 'Bossers' roles!")
+                message.channel.send("Cannot add " + role + ". Please refer to #clan-information to see what roles you can add!");
             }
         }
 
@@ -309,11 +312,11 @@ client.on('ready', () => {
             if (role == "") {
                 message.channel.send("Please enter a Username! Command should be of the form:" + "\n"
                 + "`.removerole <ROLENAME>`");
-            } else if (roleLower == "ironmanbtw" || roleLower == "raiders" || roleLower == "bossers") {
+            } else if (roleMap.get(roleLower) != undefined) {
                 message.member.removeRole(roleMap.get(roleLower));
-                message.channel.send(role + " removed!")
+                message.channel.send(role + " removed!");
             } else {
-                message.channel.send("Cannot add " + role + ". Can only add 'IronmanBTW', 'Raiders' or 'Bossers' roles!")
+                message.channel.send("Cannot remove " + role + ". Please refer to #clan-information to see what roles you can remove!");
             }
         }
 
@@ -351,10 +354,7 @@ client.on('ready', () => {
             "_***Date Joined:***_   " + userData["Date Joined"] + "\n" +
             "_***Discord Tag:***_   " + userData["Discord Tag"] + "\n" +
             "_***Abyssal Level:***_   " + "To be added!" + "\n" +
-            "_***Time Zone:***_   " + userData["Time Zone"] + "\n" +
-            "_***Bossers:***_   " + "To be added!" + "\n" +
-            "_***Raiders:***_   " + "To be added!" + "\n" +
-            "_***IronmanBTW:***_   " + "To be added!" + "\n"
+            "_***Time Zone:***_   " + userData["Time Zone"] + "\n"
             
             message.channel.send(stringMessage);
             
@@ -432,6 +432,13 @@ client.on('ready', () => {
     });
 });
 
+client.on("error", (e) => {
+    console.error(e);
+    resetBot();
+});
+client.on("warn", (e) => console.warn(e));
+client.on("debug", (e) => console.info(e));
+
 client.login(config.botToken);
 
 function refreshData() {
@@ -448,4 +455,11 @@ function refreshData() {
         nonMembersData = startUp.DownloadData(response);
         membersCount = Object.keys(nonMembersData).length;
     })
+}
+
+function resetBot() {
+    console.log('Resetting...')
+    .then(msg => client.destroy())
+    .then(() => client.login(config.botToken))
+    .then(refreshData());
 }
